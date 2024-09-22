@@ -10,6 +10,12 @@ namespace NeuralNumbers
     internal class Network
     {
         List<Layer> layers = new List<Layer>();
+        public bool trained = false;
+
+        public Network()
+        {
+            
+        }
 
         public Network(int[] layerSizes)
         {
@@ -33,8 +39,11 @@ namespace NeuralNumbers
 
         public void Train(float[][] trainingData, float[][] targetData, int epochs, float learningRate)
         {
+            Console.WriteLine("Starting training");
+            int correct = 0;
             for (int epoch = 0; epoch < epochs; epoch++)
             {
+                float totErrors = 0.0f;
                 for (int i = 0; i < trainingData.Length; i++)
                 {
                     // Pass data forward
@@ -44,9 +53,32 @@ namespace NeuralNumbers
 
                     // Calculate errors
                     float[] errors = new float[targets.Length];
+                    float largestTarget = float.MinValue;
+                    int largestTargetIndex = -1;
+                    float largestOutput = float.MinValue;
+                    int largestOutputIndex = -1;
                     for (int j = 0; j < targets.Length; j++)
                     {
                         errors[j] = targets[j] - outputs[j];
+
+                        if (targets[j] > largestTarget)
+                        {
+                            largestTarget = targets[j];
+                            largestTargetIndex = j;
+                        }
+
+                        if (outputs[j] > largestOutput)
+                        {
+                            largestOutput = outputs[j];
+                            largestOutputIndex = j;
+                        }
+
+                        totErrors += Math.Abs(errors[j]);
+                    }
+
+                    if(largestOutputIndex == largestTargetIndex)
+                    {
+                        correct++;
                     }
 
                     // Backpropagation
@@ -58,15 +90,21 @@ namespace NeuralNumbers
 
                 // Print progress in console
                 Console.WriteLine($"Epoch {epoch + 1}/{epochs} completed.");
+                Console.WriteLine("Error total: " + totErrors);
+                totErrors = 0.0f;
+
             }
+            Console.WriteLine("Ending training");
+            Console.WriteLine("Correct: " + correct / trainingData.Length + "%");
         }
 
         // Save entire network
-        public void SaveNetwork(string filePath)
+        public void Save(string filePath)
         {
             using (StreamWriter writer = new StreamWriter(filePath))
             {
                 writer.WriteLine(layers.Count);
+                writer.WriteLine(trained);
                 foreach (Layer layer in layers)
                 {
                     layer.Save(writer);

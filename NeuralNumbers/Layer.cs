@@ -51,8 +51,8 @@ namespace NeuralNumbers
         // Helper sigmoid function
         public static float Sigmoid(double value)
         {
-            float k = (float)Math.Exp(value);
-            return k / (1.0f + k);
+            float k = (float)Math.Exp(value * -1);
+            return 1 / (1.0f + k);
         }
 
         // Derivative of sigmoid
