@@ -33,7 +33,7 @@ namespace NeuralNumbers
                         int[] layerSizes = new int[] { trainingInputs[0].Length, 30, 10 };
                         Network network = new Network(layerSizes);
 
-                        network.Train(trainingInputs, trainingTargets, epochs: 100, learningRate: 0.001f);
+                        network.Train(trainingInputs, trainingTargets, 10, epochs: 5, learningRate: 0.001f);
                         network.trained = true;
 
                         network.Save("C:\\Users\\jorli\\source\\repos\\NeuralNumbers\\trained_model.txt");

@@ -10,23 +10,23 @@ namespace NeuralNumbers
 {
     internal class Layer
     {
-        int numInputs;
-        int numOutputs;
-        float bias;
-        float[,] weightValues;
+        public int numInputs;
+        public int numOutputs;
+        public float[] bias;
+        public float[][] weightValues;
         float[,] weightGradients;
 
         public Layer(int numInputs, int numOutputs)
         {
             this.numInputs = numInputs;
             this.numOutputs = numOutputs;
-            weightValues = new float[numInputs, numOutputs];
+            weightValues = new float[numInputs][];
             weightGradients = new float[numInputs, numOutputs];
             InitValues();
         }
 
         // Polymorphism - when loading, set values from variables instead of InitValues
-        public Layer(int numInputs, int numOutputs, float[,] weights, float bias)
+        public Layer(int numInputs, int numOutputs, float[][] weights, float[] bias)
         {
             this.numInputs = numInputs;
             this.numOutputs = numOutputs;
@@ -42,10 +42,13 @@ namespace NeuralNumbers
             {
                 for (int j = 0; j < numOutputs; j++)
                 {
-                    weightValues[i, j] = (float)(rand.NextDouble() * 2.0 - 1.0); // Initialize weights to random values between -1 and 1
+                    if(i == 0)
+                    {
+                        bias[j] = (float)(rand.NextDouble() * 2.0 - 1.0);
+                    }
+                    weightValues[i][j] = (float)(rand.NextDouble() * 2.0 - 1.0);
                 }
             }
-            bias = 0.0f;
         }
 
         // Helper sigmoid function
@@ -63,38 +66,39 @@ namespace NeuralNumbers
         }
 
         // Prediction - returns the result to forward to the next layer
-        public float[] CalculateResult(float[] inputs)
+        public (float[], float[]) CalculateResult(float[] inputs)
         {
             float[] result = new float[numOutputs];
+            float[] rawResult = new float[numOutputs];
 
             for (int j = 0; j < numOutputs; j++)
             {
                 float sum = 0.0f;
                 for (int i = 0; i < numInputs; i++)
                 {
-                    sum += inputs[i] * weightValues[i, j];
+                    sum += inputs[i] * weightValues[i][j] + bias[j];
                 }
-                sum += bias;
                 result[j] = Sigmoid(sum);
+                rawResult[j] = sum;
             }
 
-            return result;
+            return (result, rawResult);
         }
 
         // Back propagation
-        public float[] Backpropagate(float[] inputs, float[] errors, float learningRate)
+        /*public float[] Backpropagate(float[] inputs, float[] errors, float learningRate)
         {
             float[] inputErrors = new float[numInputs];
 
             // Compute gradients
-            for (int i = 0; i < numInputs; i++)
+            for (int j = 0; j < numOutputs; j++)
             {
-                for (int j = 0; j < numOutputs; j++)
+                for (int i = 0; i < numInputs; i++)
                 {
-                    float output = Sigmoid(inputs[i] * weightValues[i, j] + bias);
+                    float output = Sigmoid(inputs[i] * weightValues[j, i] + bias[j]);
                     float gradient = errors[j] * SigmoidDerivative(output);
-                    weightGradients[i, j] = gradient;
-                    inputErrors[i] += gradient * weightValues[i, j];
+                    weightGradients[j, i] = gradient;
+                    inputErrors[i] += gradient * weightValues[j, i];
                 }
             }
 
@@ -104,12 +108,17 @@ namespace NeuralNumbers
                 for (int j = 0; j < numOutputs; j++)
                 {
                     weightValues[i, j] -= learningRate * weightGradients[i, j];
+                    bias[j] -= learningRate * errors[i];
                 }
             }
 
-            bias -= learningRate * errors[0]; // Update bias
-
             return inputErrors;
+        }
+*/
+        // Update weights and bias
+        private void UpdateWeightsAndBias()
+        {
+
         }
 
         // Save layer
@@ -117,12 +126,15 @@ namespace NeuralNumbers
         {
             sw.WriteLine(numInputs);
             sw.WriteLine(numOutputs);
-            sw.WriteLine(bias);
             for (int i = 0; i < numInputs; i++)
             {
                 for (int j = 0; j < numOutputs; j++)
                 {
-                    sw.WriteLine(weightValues[i, j]);
+                    sw.WriteLine(weightValues[i][j]);
+                    if(i == 0)
+                    {
+                        sw.WriteLine(bias[j]);
+                    }
                 }
             }
         }
@@ -132,13 +144,17 @@ namespace NeuralNumbers
         {
             int numInputs = int.Parse(sr.ReadLine());
             int numOutputs = int.Parse(sr.ReadLine());
-            float bias = float.Parse(sr.ReadLine());
-            float[,] weights = new float[numInputs, numOutputs];
+            float[] bias = new float[numOutputs];
+            float[][] weights = new float[numInputs][];
             for (int i = 0; i < numInputs; i++)
             {
                 for (int j = 0; j < numOutputs; j++)
                 {
-                    weights[i, j] = float.Parse(sr.ReadLine());
+                    weights[i][j] = float.Parse(sr.ReadLine());
+                    if(i == 0)
+                    {
+                        bias[j] = float.Parse(sr.ReadLine());
+                    }
                 }
             }
             return new Layer(numInputs, numOutputs, weights, bias);
