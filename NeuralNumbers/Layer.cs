@@ -20,8 +20,13 @@ namespace NeuralNumbers
         {
             this.numInputs = numInputs;
             this.numOutputs = numOutputs;
-            weightValues = new float[numInputs][];
+            weightValues = new float[numOutputs][];
+            for(int i = 0; i < numOutputs; i++)
+            {
+                weightValues[i] = new float[numInputs];
+            }
             weightGradients = new float[numInputs, numOutputs];
+            bias = new float[numOutputs];
             InitValues();
         }
 
@@ -38,14 +43,11 @@ namespace NeuralNumbers
         private void InitValues()
         {
             Random rand = new Random();
-            for (int i = 0; i < numInputs; i++)
+            for (int i = 0; i < numOutputs; i++)
             {
-                for (int j = 0; j < numOutputs; j++)
+                bias[i] = (float)(rand.NextDouble() * 2.0 - 1.0);
+                for (int j = 0; j < numInputs; j++)
                 {
-                    if(i == 0)
-                    {
-                        bias[j] = (float)(rand.NextDouble() * 2.0 - 1.0);
-                    }
                     weightValues[i][j] = (float)(rand.NextDouble() * 2.0 - 1.0);
                 }
             }
@@ -56,13 +58,6 @@ namespace NeuralNumbers
         {
             float k = (float)Math.Exp(value * -1);
             return 1 / (1.0f + k);
-        }
-
-        // Derivative of sigmoid
-        public static float SigmoidDerivative(double value)
-        {
-            float sigmoid = Sigmoid(value);
-            return sigmoid * (1.0f - sigmoid);
         }
 
         // Prediction - returns the result to forward to the next layer
@@ -76,7 +71,7 @@ namespace NeuralNumbers
                 float sum = 0.0f;
                 for (int i = 0; i < numInputs; i++)
                 {
-                    sum += inputs[i] * weightValues[i][j] + bias[j];
+                    sum += inputs[i] * weightValues[j][i] + bias[j];
                 }
                 result[j] = Sigmoid(sum);
                 rawResult[j] = sum;
@@ -126,14 +121,14 @@ namespace NeuralNumbers
         {
             sw.WriteLine(numInputs);
             sw.WriteLine(numOutputs);
-            for (int i = 0; i < numInputs; i++)
+            for (int i = 0; i < numOutputs; i++)
             {
-                for (int j = 0; j < numOutputs; j++)
+                for (int j = 0; j < numInputs; j++)
                 {
                     sw.WriteLine(weightValues[i][j]);
                     if(i == 0)
                     {
-                        sw.WriteLine(bias[j]);
+                        sw.WriteLine(bias[i]);
                     }
                 }
             }
@@ -145,15 +140,15 @@ namespace NeuralNumbers
             int numInputs = int.Parse(sr.ReadLine());
             int numOutputs = int.Parse(sr.ReadLine());
             float[] bias = new float[numOutputs];
-            float[][] weights = new float[numInputs][];
-            for (int i = 0; i < numInputs; i++)
+            float[][] weights = new float[numOutputs][];
+            for (int i = 0; i < numOutputs; i++)
             {
-                for (int j = 0; j < numOutputs; j++)
+                for (int j = 0; j < numInputs; j++)
                 {
                     weights[i][j] = float.Parse(sr.ReadLine());
                     if(i == 0)
                     {
-                        bias[j] = float.Parse(sr.ReadLine());
+                        bias[i] = float.Parse(sr.ReadLine());
                     }
                 }
             }

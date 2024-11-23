@@ -31,12 +31,17 @@ namespace NeuralNumbers
         public (float[][], float[][]) FeedForward(float[] inputs)
         {
             float[][] outputs = new float[layers.Count][];
-            outputs[0] = inputs;
             float[][] rawOutputs = new float[layers.Count][];
-
-            for (int i = 0; i < layers.Count; i++)
+            for(int i = 0; i < layers.Count; i++)
             {
-                (outputs[i + 1], rawOutputs[i + 1]) = layers[i].CalculateResult(outputs[i]);
+                outputs[i] = new float[layers[i].numOutputs];
+                rawOutputs[i] = new float[layers[i].numOutputs];
+            }
+
+            (outputs[0], rawOutputs[0]) = layers[0].CalculateResult(inputs);
+            for (int i = 1; i < layers.Count; i++)
+            {
+                (outputs[i], rawOutputs[i]) = layers[i].CalculateResult(outputs[i - 1]);
             }
 
             return (outputs, rawOutputs);
@@ -54,6 +59,16 @@ namespace NeuralNumbers
                 float totErrors = 0.0f;
                 float[][] deltaB = new float[layers.Count][];
                 float[][][] deltaW = new float[layers.Count][][];
+                for (int i = 0; i < layers.Count; i++)
+                {
+                    deltaB[i] = new float[layers[i].numOutputs];
+                    deltaW[i] = new float[layers[i].numOutputs][];
+                    for(int j = 0; j < layers[i].numOutputs; j++)
+                    {
+                        deltaW[i][j] = new float[layers[i].numInputs];
+                    }
+                }
+                
                 for (int i = trainingStart; i < trainingStart + batchSize; i++)
                 {
                     // Pass data forward
@@ -66,12 +81,28 @@ namespace NeuralNumbers
                     float[] delta = new float[targets.Length];
                     for (int j = 0; j < targets.Length; j++)
                     {
-                        delta[j] = outputs.Last()[j] - targets[j] * SigmoidPrime(rawOutputs.Last()[j]);
+                        delta[j] = (outputs.Last()[j] - targets[j]) * SigmoidPrime(rawOutputs.Last()[j]);
+                        
+                    }
+
+                    if (outputs.Last().ToList().IndexOf(outputs.Last().Max()) == targets.ToList().IndexOf(targets.Max()))
+                    {
+                        correct++;
                     }
 
                     // Backpropagation
                     float[][] nablaB = new float[layers.Count][];
                     float[][][] nablaW = new float[layers.Count][][];
+                    for(int j = 0; j < layers.Count; j++)
+                    {
+                        nablaB[j] = new float[layers[j].bias.Length];
+                        nablaW[j] = new float[layers[j].numOutputs][];
+                        for(int k = 0; k < layers[j].numOutputs; k++)
+                        {
+                            nablaW[j][k] = new float[layers[j].numInputs];
+                        }
+                    }
+                    
                     nablaB[nablaB.Length - 1] = delta;
                     nablaW[layers.Count - 1] = DotProduct(outputs.Last(), delta);
 
@@ -86,11 +117,49 @@ namespace NeuralNumbers
                         }
                         delta = DotProduct(layers[j + 1].weightValues, delta);
                         nablaB[j] = delta;
-                        nablaW[j] = DotProduct(delta, outputs[j - 1]);
+                        nablaW[j] = DotProduct(delta, j > 0 ? outputs[j - 1] : layers[0].CalculateResult(inputs).Item1);
                     }
 
-                    // Next step: accumulate bias and weight differences, and then update bias and weight values after each batch
+                    // Accumulate bias differences
+                    for(int j = 0; j < nablaB.Length; j++)
+                    {
+                        for(int k = 0; k < nablaB[j].Length; k++)
+                        {
+                            deltaB[j][k] += nablaB[j][k];
+                        }
+                    }
 
+                    // Accumulate weight differences
+                    for(int j = 0; j < nablaW.Length; j++)
+                    {
+                        for(int k = 0; k < nablaW[j].Length; k++)
+                        {
+                            for(int l = 0; l < nablaW[j][k].Length; l++)
+                            {
+                                deltaW[j][k][l] += nablaW[j][k][l];
+                            }
+                        }
+                    }
+
+                    Console.WriteLine("Output: " + outputs.Last().Last());
+                    Console.WriteLine("Target: " + targets.Last());
+                }
+
+                // Update bias and weight values
+                for(int i = 0; i < layers.Count; i++)
+                {
+                    for(int j = 0; j < layers[i].bias.Length; j++)
+                    {
+                        layers[i].bias[j] += deltaB[i][j];
+                    }
+
+                    for(int j = 0; j < layers[i].weightValues.Length; j++)
+                    {
+                        for(int k = 0; k < layers[i].weightValues[j].Length; k++)
+                        {
+                            layers[i].weightValues[j][k] += deltaW[i][j][k];
+                        }
+                    }
                 }
 
                 // Print progress in console
@@ -105,12 +174,21 @@ namespace NeuralNumbers
 
         private float SigmoidPrime(float value)
         {
-            return value * (1.0f - value);
+            return Sigmoid(value) * (1.0f - Sigmoid(value));
+        }
+
+        private float Sigmoid(float value)
+        {
+            return 1 / (float)(1.0f + Math.Exp(-1 * value));
         }
 
         private float[][] DotProduct(float[] vector1, float[] vector2)
         {
             float[][] res = new float[vector2.Length][];
+            for(int i = 0; i < vector2.Length; i++)
+            {
+                res[i] = new float[vector1.Length];
+            }
             for(int i = 0; i < vector1.Length; i++)
             {
                 for(int j = 0; j < vector1.Length; j++)
