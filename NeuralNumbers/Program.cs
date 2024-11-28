@@ -10,7 +10,7 @@ namespace NeuralNumbers
         static void Main(string[] args)
         {
             // Dataset start and end ranges
-            const int trainingStart = 1, trainingEnd = 3000; //30000
+            const int trainingStart = 1, trainingEnd = 30000; //30000
             const int validStart = trainingEnd + 1, validEnd = validStart + 9999;
             const int demoStart = validEnd + 1, demoEnd = demoStart + 99;
 
@@ -30,10 +30,10 @@ namespace NeuralNumbers
                     {
                         (float[][] trainingInputs, float[][] trainingTargets) = ReadValues(filePath, trainingStart, trainingEnd);
                         // If training, we create a new network - otherwise we load an old one
-                        int[] layerSizes = new int[] { trainingInputs[0].Length, 30, 30, 10 };
+                        int[] layerSizes = new int[] { trainingInputs[0].Length, 30, 10 };
                         Network network = new Network(layerSizes);
 
-                        network.Train(trainingInputs, trainingTargets, 20, epochs: 50, learningRate: 0.1f);
+                        network.Train(trainingInputs, trainingTargets, 30, epochs: 800, learningRate: 3f);
                         network.trained = true;
 
                         network.Save("C:\\Users\\jorli\\source\\repos\\NeuralNumbers\\trained_model.txt");
@@ -58,10 +58,6 @@ namespace NeuralNumbers
                         break;
                     }
             }
-
-            
-
-            
         }
 
         // Get dataset values from csv file

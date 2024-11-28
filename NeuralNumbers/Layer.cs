@@ -71,8 +71,9 @@ namespace NeuralNumbers
                 float sum = 0.0f;
                 for (int i = 0; i < numInputs; i++)
                 {
-                    sum += inputs[i] * weightValues[j][i] + bias[j];
+                    sum += inputs[i] * weightValues[j][i];
                 }
+                sum += bias[j];
                 result[j] = Sigmoid(sum);
                 rawResult[j] = sum;
             }

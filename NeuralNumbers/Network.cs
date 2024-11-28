@@ -85,11 +85,6 @@ namespace NeuralNumbers
                         
                     }
 
-                    if (outputs.Last().ToList().IndexOf(outputs.Last().Max()) == targets.ToList().IndexOf(targets.Max()))
-                    {
-                        correct++;
-                    }
-
                     // Backpropagation
                     float[][] nablaB = new float[layers.Count][];
                     float[][][] nablaW = new float[layers.Count][][];
@@ -104,7 +99,7 @@ namespace NeuralNumbers
                     }
                     
                     nablaB[nablaB.Length - 1] = delta;
-                    nablaW[layers.Count - 1] = DotProduct(outputs.Last(), delta);
+                    nablaW[layers.Count - 1] = DotProduct(outputs[outputs.Length - 2], delta);
 
                     // Start at next to last layer, as we already have computed the last layer in the last loop
                     for (int j = layers.Count - 2; j >= 0; j--)
@@ -117,7 +112,9 @@ namespace NeuralNumbers
                         }
                         delta = DotProduct(layers[j + 1].weightValues, delta);
                         nablaB[j] = delta;
-                        nablaW[j] = DotProduct(delta, j > 0 ? outputs[j - 1] : layers[0].CalculateResult(inputs).Item1);
+                        float[] calcArray = layers[0].CalculateResult(inputs).Item1;
+                        // Different array sizes throws error - DotProduct?
+                        nablaW[j] = DotProduct(delta, j > 0 ? outputs[j - 1] : calcArray);
                     }
 
                     // Accumulate bias differences
@@ -141,8 +138,11 @@ namespace NeuralNumbers
                         }
                     }
 
-                    Console.WriteLine("Output: " + outputs.Last().Last());
-                    Console.WriteLine("Target: " + targets.Last());
+                    //Console.WriteLine("Output: " + Array.IndexOf(outputs.Last(), outputs.Last().Max()));
+                    //Console.WriteLine("Target: " + Array.IndexOf(targets, 1).ToString());
+                    //Console.WriteLine("----------------");
+                    totErrors = Array.IndexOf(outputs.Last(), outputs.Last().Max()) != Array.IndexOf(targets, 1) ? totErrors + 1 : totErrors;
+                    correct = Array.IndexOf(outputs.Last(), outputs.Last().Max()) == Array.IndexOf(targets, 1) ? correct + 1 : correct;
                 }
 
                 // Update bias and weight values
@@ -150,14 +150,14 @@ namespace NeuralNumbers
                 {
                     for(int j = 0; j < layers[i].bias.Length; j++)
                     {
-                        layers[i].bias[j] += deltaB[i][j];
+                        layers[i].bias[j] -= (learningRate/batchSize) * deltaB[i][j];
                     }
 
                     for(int j = 0; j < layers[i].weightValues.Length; j++)
                     {
                         for(int k = 0; k < layers[i].weightValues[j].Length; k++)
                         {
-                            layers[i].weightValues[j][k] += deltaW[i][j][k];
+                            layers[i].weightValues[j][k] = layers[i].weightValues[j][k] - (learningRate/batchSize) * (deltaW[i][j][k]);
                         }
                     }
                 }
@@ -165,16 +165,20 @@ namespace NeuralNumbers
                 // Print progress in console
                 Console.WriteLine($"Epoch {epoch + 1}/{epochs} completed.");
                 Console.WriteLine("Error total: " + totErrors);
+                //SaveInterrimData();
                 totErrors = 0.0f;
 
             }
             Console.WriteLine("Ending training");
-            Console.WriteLine("Correct: " + correct / trainingData.Length + "%");
+            double correctProc = ((double)correct / ((double)batchSize * (double)epochs));
+            Console.WriteLine("Correct: " + correctProc.ToString("P2"));
         }
 
         private float SigmoidPrime(float value)
         {
-            return Sigmoid(value) * (1.0f - Sigmoid(value));
+            float sigVal = Sigmoid(value);
+            float ret = Sigmoid(value) * (1.0f - Sigmoid(value));
+            return ret;
         }
 
         private float Sigmoid(float value)
@@ -189,11 +193,11 @@ namespace NeuralNumbers
             {
                 res[i] = new float[vector1.Length];
             }
-            for(int i = 0; i < vector1.Length; i++)
+            for(int i = 0; i < vector2.Length; i++)
             {
                 for(int j = 0; j < vector1.Length; j++)
                 {
-                    res[i][j] += vector1[i] * vector2[j];
+                    res[i][j] += vector1[j] * vector2[i];
                 }
             }
             return res;
@@ -202,17 +206,13 @@ namespace NeuralNumbers
         // Override in case of two-dimensional matrix
         private float[] DotProduct(float[][] vector1, float[] vector2)
         {
-            float[] res = new float[vector1.Length];
-            for(int i = 0; i < vector1.Length; i++)
+            float[] res = new float[vector1[0].Length];
+            for(int i = 0; i < vector1[0].Length; i++)
             {
+                res[i] = 0;
                 for(int j = 0; j < vector2.Length; j++)
                 {
-                    float intermittentResult = 0;
-                    for(int k = 0; k < vector1[i].Length; k++)
-                    {
-                        intermittentResult += vector1[i][k] * vector2[j];
-                    }
-                    res[i] += intermittentResult;
+                    res[i] += vector1[j][i] * vector2[j];
                 }
             }
             return res;
@@ -248,5 +248,21 @@ namespace NeuralNumbers
                 return network;
             }
         }
+
+        public void SaveInterrimData()
+        {
+            using (StreamWriter sw = new StreamWriter("C:\\Users\\jorli\\source\\repos\\NeuralNumbers\\garbageData.txt", true))
+            {
+
+                string str = "";
+                for(int i = 0; i < 10; i++)
+                {
+                    str += (layers.First().bias[i] + ", ");
+                }
+                sw.WriteLine(str);
+            }
+        }
     }
+
+    
 }
