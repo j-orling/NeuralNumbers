@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.Remoting.Messaging;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -11,7 +12,9 @@ namespace NeuralNumbers
     internal class Layer
     {
         public int numInputs;
+        public float[] inputs;
         public int numOutputs;
+        public float[] outputs;
         public float[] bias;
         public float[][] weightValues;
 
@@ -37,7 +40,7 @@ namespace NeuralNumbers
             this.bias = bias;
         }
 
-        //Initialize weight values
+        //Initialize weight + bias values
         private void InitValues()
         {
             Random rand = new Random();
@@ -51,7 +54,7 @@ namespace NeuralNumbers
             }
         }
 
-        // Helper sigmoid function
+        // Sigmoid activation function
         public static float Sigmoid(double value)
         {
             float k = (float)Math.Exp(value * -1);
@@ -59,10 +62,10 @@ namespace NeuralNumbers
         }
 
         // Prediction - returns the result to forward to the next layer
-        public (float[], float[]) CalculateResult(float[] inputs)
+        public float[] CalculateResult(float[] inputs)
         {
+            this.inputs = inputs;
             float[] result = new float[numOutputs];
-            float[] rawResult = new float[numOutputs];
 
             for (int j = 0; j < numOutputs; j++)
             {
@@ -73,10 +76,11 @@ namespace NeuralNumbers
                 }
                 sum += bias[j];
                 result[j] = Sigmoid(sum);
-                rawResult[j] = sum;
             }
 
-            return (result, rawResult);
+            // Stored for backprop
+            this.outputs = result;
+            return result;
         }
 
         // Save layer

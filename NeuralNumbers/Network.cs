@@ -15,7 +15,7 @@ namespace NeuralNumbers
 
         public Network()
         {
-            
+
         }
 
         public Network(int[] layerSizes)
@@ -27,183 +27,130 @@ namespace NeuralNumbers
 
         }
 
-        public (float[][], float[][]) FeedForward(float[] inputs)
+        public float[][] FeedForward(float[] inputs)
         {
             float[][] outputs = new float[layers.Count][];
-            float[][] rawOutputs = new float[layers.Count][];
-            for(int i = 0; i < layers.Count; i++)
+            for (int i = 0; i < layers.Count; i++)
             {
                 outputs[i] = new float[layers[i].numOutputs];
-                rawOutputs[i] = new float[layers[i].numOutputs];
             }
 
-            (outputs[0], rawOutputs[0]) = layers[0].CalculateResult(inputs);
+            outputs[0] = layers[0].CalculateResult(inputs);
             for (int i = 1; i < layers.Count; i++)
             {
-                (outputs[i], rawOutputs[i]) = layers[i].CalculateResult(outputs[i - 1]);
+                outputs[i] = layers[i].CalculateResult(outputs[i - 1]);
             }
 
-            return (outputs, rawOutputs);
+            return outputs;
         }
 
-        public void Train(float[][] inputData, float[][] targData, int batchSize, int epochs, float learningRate)
+        public void Backpropagate(float[] target, float learningRate)
+        {
+            // Calculate output layer deltas
+            float[][] deltas = new float[layers.Count][];
+            for (int i = layers.Count - 1; i >= 0; i--)
+            {
+                deltas[i] = new float[layers[i].numOutputs];
+                for (int j = 0; j < layers[i].numOutputs; j++)
+                {
+                    if (i == layers.Count - 1) // Output layer
+                    {
+                        float output = layers[i].outputs[j];
+                        deltas[i][j] = (output - target[j]) * output * (1 - output);
+                    }
+                    else // Hidden layers
+                    {
+                        float sum = 0.0f;
+                        for (int k = 0; k < layers[i + 1].numOutputs; k++)
+                        {
+                            sum += deltas[i + 1][k] * layers[i + 1].weightValues[k][j];
+                        }
+                        float output = layers[i].outputs[j];
+                        deltas[i][j] = sum * output * (1 - output);
+                    }
+                }
+            }
+
+            // Update weights and biases
+            for (int i = 0; i < layers.Count; i++)
+            {
+                for (int j = 0; j < layers[i].numOutputs; j++)
+                {
+                    layers[i].bias[j] -= learningRate * deltas[i][j];
+                    for (int k = 0; k < layers[i].numInputs; k++)
+                    {
+                        layers[i].weightValues[j][k] -= learningRate * deltas[i][j] * layers[i].inputs[k];
+                    }
+                }
+            }
+        }
+
+        public float Train(float[][] inputData, float[][] targData, int batchSize, int epochs, float learningRate)
         {
             Console.WriteLine("Starting training");
 
             int correct = 0;
             float lastBatchErr = 0.0f;
-            
+            float sumError = 0.0f;
+            float initLearningRate = learningRate;
+
             for (int epoch = 0; epoch < epochs; epoch++)
             {
-                if (epoch == (int)(epochs / 4))
-                {
-                    learningRate *= 0.75f;
-                }
-                else if(epoch == (int)(epochs / 2))
-                {
-                    learningRate *= 0.75f;
-                }
-                else if(epoch == (int)(epochs * 0.75))
-                {
-                    learningRate *= 0.75f;
-                }
+                sumError = 0.0f;
+                correct = 0;
 
-                // Shuffle training data
-                (float[][] trainingData, float[][] targetData) = ShuffleData(inputData, targData);
-
-                float sumError = 0.0f;
-
-                int totErrors = 0;
-                // Indexing for mini-batching
-                int trainingStart = 0;
-                for (int batch = 0; batch < trainingData.Length; batch += batchSize)
+                for (int i = 0; i < inputData.Length; i += batchSize)
                 {
-                    float[][] deltaB = new float[layers.Count][];
-                    float[][][] deltaW = new float[layers.Count][][];
-
-                    for (int i = 0; i < layers.Count; i++)
+                    int end = Math.Min(i + batchSize, inputData.Length);
+                    for (int j = i; j < end; j++)
                     {
-                        deltaB[i] = new float[layers[i].numOutputs];
-                        deltaW[i] = new float[layers[i].numOutputs][];
-                        for (int j = 0; j < layers[i].numOutputs; j++)
+                        float[][] outputs = FeedForward(inputData[j]);
+                        float[] output = outputs.Last();
+                        float[] target = targData[j];
+
+                        // Calculate error and backpropagate
+                        float error = 0.0f;
+                        for (int k = 0; k < output.Length; k++)
                         {
-                            deltaW[i][j] = new float[layers[i].numInputs];
+                            float delta = target[k] - output[k];
+                            error += delta * delta;
+                        }
+                        sumError += error;
+
+                        // Backpropagation
+                        Backpropagate(target, learningRate);
+
+                        // Check if the prediction is correct
+                        if (Array.IndexOf(output, output.Max()) == Array.IndexOf(target, target.Max()))
+                        {
+                            correct++;
                         }
                     }
-
-                    for (int i = trainingStart; i < trainingStart + batchSize; i++)
-                    {
-                        // Pass data forward
-                        float[] inputs = trainingData[i];
-                        float[] targets = targetData[i];
-                        // Outputs and rawOutputs store activation values for each layer in the network
-                        (float[][] outputs, float[][] rawOutputs) = FeedForward(inputs);
-
-                        if (Array.IndexOf(outputs.Last(), outputs.Last().Max()) != Array.IndexOf(targets, 1)) {
-
-                            // Calculate errors, store in delta
-                            float[] delta = new float[targets.Length];
-                            for (int j = 0; j < targets.Length; j++)
-                            {
-                                delta[j] = (outputs.Last()[j] - targets[j]) * SigmoidPrime(rawOutputs.Last()[j]);
-                                sumError += (outputs.Last()[j] - targets[j]) * (outputs.Last()[j] - targets[j]);
-                            }
-
-                            // Backpropagation
-                            float[][] nablaB = new float[layers.Count][];
-                            float[][][] nablaW = new float[layers.Count][][];
-                            for (int j = 0; j < layers.Count; j++)
-                            {
-                                nablaB[j] = new float[layers[j].bias.Length];
-                                nablaW[j] = new float[layers[j].numOutputs][];
-                                for (int k = 0; k < layers[j].numOutputs; k++)
-                                {
-                                    nablaW[j][k] = new float[layers[j].numInputs];
-                                }
-                            }
-
-                            nablaB[nablaB.Length - 1] = delta;
-                            nablaW[layers.Count - 1] = DotProduct(delta, outputs[outputs.Length - 2]);
-
-                            // Start at next to last layer, as we already have computed the last layer in the last loop
-                            for (int j = layers.Count - 2; j >= 0; j--)
-                            {
-                                float[] z = rawOutputs[j];
-                                float[] sp = new float[layers[j].numOutputs];
-                                for (int k = 0; k < layers[j].numOutputs; k++)
-                                {
-                                    sp[k] = SigmoidPrime(rawOutputs[j][k]);
-                                }
-                                delta = DotProduct(layers[j + 1].weightValues, delta);
-                                nablaB[j] = delta;
-                                float[] calcArray = layers[0].CalculateResult(inputs).Item1;
-                                // Different array sizes throws error - DotProduct?
-                                nablaW[j] = DotProduct(delta, j > 0 ? outputs[j - 1] : calcArray);
-                            }
-
-                            // Accumulate bias differences
-                            for (int j = 0; j < nablaB.Length; j++)
-                            {
-                                for (int k = 0; k < nablaB[j].Length; k++)
-                                {
-                                    deltaB[j][k] += nablaB[j][k];
-                                }
-                            }
-
-                            // Accumulate weight differences
-                            for (int j = 0; j < nablaW.Length; j++)
-                            {
-                                for (int k = 0; k < nablaW[j].Length; k++)
-                                {
-                                    for (int l = 0; l < nablaW[j][k].Length; l++)
-                                    {
-                                        deltaW[j][k][l] += nablaW[j][k][l];
-                                    }
-                                }
-                            }
-
-                        }
-
-                        //Console.WriteLine("Output: " + Array.IndexOf(outputs.Last(), outputs.Last().Max()));
-                        //Console.WriteLine("Target: " + Array.IndexOf(targets, 1).ToString());
-                        //Console.WriteLine("----------------");
-                        totErrors = Array.IndexOf(outputs.Last(), outputs.Last().Max()) != Array.IndexOf(targets, 1) ? totErrors + 1 : totErrors;
-                        //correct = Array.IndexOf(outputs.Last(), outputs.Last().Max()) == Array.IndexOf(targets, 1) ? correct + 1 : correct;
-                        //if (epoch == epochs - 1)
-                        //{
-                        //    lastBatchErr = Array.IndexOf(outputs.Last(), outputs.Last().Max()) == Array.IndexOf(targets, 1) ? lastBatchErr + 1 : lastBatchErr;
-                        //    Console.WriteLine("Output: " + Array.IndexOf(outputs.Last(), outputs.Last().Max()) + " | Target: " + Array.IndexOf(targets, 1) + " | Array index: " + i);
-                        //}
-                    }
-
-                    // Update bias and weight values
-                    for (int i = 0; i < layers.Count; i++)
-                    {
-                        for (int j = 0; j < layers[i].bias.Length; j++)
-                        {
-                            layers[i].bias[j] -= (learningRate / batchSize) * deltaB[i][j];
-                        }
-
-                        for (int j = 0; j < layers[i].weightValues.Length; j++)
-                        {
-                            for (int k = 0; k < layers[i].weightValues[j].Length; k++)
-                            {
-                                layers[i].weightValues[j][k] = layers[i].weightValues[j][k] - (learningRate / batchSize) * (deltaW[i][j][k]);
-                            }
-                        }
-                    }
-
-                    trainingStart += batchSize - 1;
-
                 }
 
-                Console.WriteLine($"Epoch {epoch + 1}/{epochs} completed.");
-                Console.WriteLine("Error total: " + totErrors);
-                Console.WriteLine("Sum error: " + sumError);
-                totErrors = 0;
+                // Adjust learning rate if using a learning rate schedule
+                learningRate = initLearningRate * (1.0f / (1.0f + 0.01f * epoch));
+
+                Console.WriteLine($"Epoch {epoch + 1}/{epochs}, Error: {sumError}, Accuracy: {(float)correct / inputData.Length}");
             }
 
-            Console.WriteLine("Ending training");
+            return sumError;
+        }
+
+        // Check if the network achieves at least 90% accuracy
+        public bool CheckAccuracy(float[][] inputs, float[][] targets)
+        {
+            int correct = 0;
+            for (int i = 0; i < inputs.Length; i++)
+            {
+                float[][] outputs = FeedForward(inputs[i]);
+                if (Array.IndexOf(outputs.Last(), outputs.Last().Max()) == Array.IndexOf(targets[i], 1))
+                {
+                    correct++;
+                }
+            }
+            double accuracy = (double)correct / inputs.Length;
+            return accuracy >= 0.90;
         }
 
         private (float[][], float[][]) ShuffleData(float[][] trainingData, float[][] targetData)
@@ -232,12 +179,12 @@ namespace NeuralNumbers
         {
             int correct = 0;
 
-            for(int i = 0; i < trainingData.Length; i++)
+            for (int i = 0; i < trainingData.Length; i++)
             {
                 float[] inputs = trainingData[i];
                 float[] targets = targetData[i];
-                
-                (float[][] outputs, float[][] rawOutputs) = FeedForward(inputs);
+
+                float[][] outputs = FeedForward(inputs);
 
                 // Check if correct and print debug info
                 correct = Array.IndexOf(outputs.Last(), outputs.Last().Max()) == Array.IndexOf(targets, 1) ? correct + 1 : correct;
@@ -266,13 +213,13 @@ namespace NeuralNumbers
         private float[][] DotProduct(float[] vector1, float[] vector2)
         {
             float[][] res = new float[vector1.Length][];
-            for(int i = 0; i < vector1.Length; i++)
+            for (int i = 0; i < vector1.Length; i++)
             {
                 res[i] = new float[vector2.Length];
             }
-            for(int i = 0; i < vector1.Length; i++)
+            for (int i = 0; i < vector1.Length; i++)
             {
-                for(int j = 0; j < vector2.Length; j++)
+                for (int j = 0; j < vector2.Length; j++)
                 {
                     res[i][j] += vector1[i] * vector2[j];
                 }
@@ -284,10 +231,10 @@ namespace NeuralNumbers
         private float[] DotProduct(float[][] vector1, float[] vector2)
         {
             float[] res = new float[vector1[0].Length];
-            for(int i = 0; i < vector1[0].Length; i++)
+            for (int i = 0; i < vector1[0].Length; i++)
             {
                 res[i] = 0;
-                for(int j = 0; j < vector2.Length; j++)
+                for (int j = 0; j < vector2.Length; j++)
                 {
                     res[i] += vector1[j][i] * vector2[j];
                 }
@@ -311,5 +258,5 @@ namespace NeuralNumbers
         }
     }
 
-    
+
 }
