@@ -14,7 +14,6 @@ namespace NeuralNumbers
         public int numOutputs;
         public float[] bias;
         public float[][] weightValues;
-        float[,] weightGradients;
 
         public Layer(int numInputs, int numOutputs)
         {
@@ -25,7 +24,6 @@ namespace NeuralNumbers
             {
                 weightValues[i] = new float[numInputs];
             }
-            weightGradients = new float[numInputs, numOutputs];
             bias = new float[numOutputs];
             InitValues();
         }
@@ -81,42 +79,6 @@ namespace NeuralNumbers
             return (result, rawResult);
         }
 
-        // Back propagation
-        /*public float[] Backpropagate(float[] inputs, float[] errors, float learningRate)
-        {
-            float[] inputErrors = new float[numInputs];
-
-            // Compute gradients
-            for (int j = 0; j < numOutputs; j++)
-            {
-                for (int i = 0; i < numInputs; i++)
-                {
-                    float output = Sigmoid(inputs[i] * weightValues[j, i] + bias[j]);
-                    float gradient = errors[j] * SigmoidDerivative(output);
-                    weightGradients[j, i] = gradient;
-                    inputErrors[i] += gradient * weightValues[j, i];
-                }
-            }
-
-            // Update weights and bias
-            for (int i = 0; i < numInputs; i++)
-            {
-                for (int j = 0; j < numOutputs; j++)
-                {
-                    weightValues[i, j] -= learningRate * weightGradients[i, j];
-                    bias[j] -= learningRate * errors[i];
-                }
-            }
-
-            return inputErrors;
-        }
-*/
-        // Update weights and bias
-        private void UpdateWeightsAndBias()
-        {
-
-        }
-
         // Save layer
         public void Save(StreamWriter sw)
         {
@@ -124,13 +86,10 @@ namespace NeuralNumbers
             sw.WriteLine(numOutputs);
             for (int i = 0; i < numOutputs; i++)
             {
+                sw.WriteLine(bias[i]);
                 for (int j = 0; j < numInputs; j++)
                 {
                     sw.WriteLine(weightValues[i][j]);
-                    if(i == 0)
-                    {
-                        sw.WriteLine(bias[i]);
-                    }
                 }
             }
         }
@@ -144,13 +103,11 @@ namespace NeuralNumbers
             float[][] weights = new float[numOutputs][];
             for (int i = 0; i < numOutputs; i++)
             {
+                weights[i] = new float[numInputs];
+                bias[i] = float.Parse(sr.ReadLine());
                 for (int j = 0; j < numInputs; j++)
                 {
                     weights[i][j] = float.Parse(sr.ReadLine());
-                    if(i == 0)
-                    {
-                        bias[i] = float.Parse(sr.ReadLine());
-                    }
                 }
             }
             return new Layer(numInputs, numOutputs, weights, bias);
